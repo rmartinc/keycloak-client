@@ -47,6 +47,8 @@ public class KeycloakContainersServerProvider implements KeycloakServerProvider 
                         throw new IllegalStateException("Providers file " + testProvidersFile + " does not exists");
                     }
                     keycloakContainer.withProviderLibsFrom(Collections.singletonList(providersFile));
+                    keycloakContainer.withFeaturesEnabled("authorization");
+                    keycloakContainer.withEnv("KC_LOG_LEVEL", "INFO,org.keycloak.services.error:TRACE");
 
                     keycloakContainer.start();
                     logger.infof("Started Keycloak server on URL %s", keycloakContainer.getAuthServerUrl());

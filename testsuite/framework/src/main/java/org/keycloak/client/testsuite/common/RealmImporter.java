@@ -1,12 +1,15 @@
 package org.keycloak.client.testsuite.common;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
+import org.keycloak.adapters.authorization.util.JsonUtils;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RequiredActionProviderRepresentation;
+import org.keycloak.util.JsonSerialization;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -32,6 +35,11 @@ public class RealmImporter {
             List<RealmRepresentation> realmsToImport = realmsProvider.getRealmsForImport();
 
             importedRealmNames = realmsToImport.stream().map(realm -> {
+                try {
+                System.err.println(JsonSerialization.writeValueAsString(realm));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 adminClient.realms().create(realm);
 
                 if (realmsProvider.removeVerifyProfileAtImport()) {
@@ -61,6 +69,7 @@ public class RealmImporter {
             adminClient.realms().realm(realmName).remove();
         }
 
+        importedRealmNames = null;
         logger.tracef("Deleted realms: %s after test class", importedRealmNames);
     }
 

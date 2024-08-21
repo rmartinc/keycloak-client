@@ -1,29 +1,24 @@
 package org.keycloak.client.testsuite.common;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.UriBuilder;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.keycloak.OAuth2Constants;
-import org.keycloak.client.testsuite.framework.TestRegistry;
-import org.keycloak.client.testsuite.server.KeycloakServerProvider;
 import org.keycloak.common.util.KeycloakUriBuilder;
 import org.keycloak.testsuite.util.ServerURLs;
 import org.keycloak.util.BasicAuthHelper;
@@ -157,6 +152,12 @@ public class OAuthClient {
 
     }
 
+    public String getTokenIntrospectionUrl(String realmName) {
+        return KeycloakUriBuilder.fromUri(ServerURLs.AUTH_SERVER_URL + "/realms/{realmName}/protocol/openid-connect/token/introspect")
+                .build(realmName)
+                .toString();
+    }
+
     public String getResourceOwnerPasswordCredentialGrantUrl(String realmName) {
         return KeycloakUriBuilder.fromUri(ServerURLs.AUTH_SERVER_URL + "/realms/{realmName}/protocol/openid-connect/token")
                 .build(realmName)
@@ -204,6 +205,42 @@ public class OAuthClient {
         return client.execute(post);
     }
 
+    public String introspectTokenWithClientCredential(String realm, String clientId, String clientSecret, String tokenType, String tokenToIntrospect) {
+        HttpPost post = new HttpPost(getTokenIntrospectionUrl(realm));
+
+        //if (requestHeaders != null) {
+        //    for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+        //        post.addHeader(header.getKey(), header.getValue());
+        //    }
+        //}
+
+        String authorization = BasicAuthHelper.createHeader(clientId, clientSecret);
+        post.setHeader("Authorization", authorization);
+
+        List<NameValuePair> parameters = new LinkedList<>();
+
+        parameters.add(new BasicNameValuePair("token", tokenToIntrospect));
+        parameters.add(new BasicNameValuePair("token_type_hint", tokenType));
+
+        UrlEncodedFormEntity formEntity;
+
+        try {
+            formEntity = new UrlEncodedFormEntity(parameters, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+
+        post.setEntity(formEntity);
+
+        try (CloseableHttpResponse response = httpClient.execute(post)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+            response.getEntity().writeTo(out);
+            return new String(out.toByteArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve access token", e);
+        }
+    }
 
     public static class AccessTokenResponse {
         private int statusCode;
